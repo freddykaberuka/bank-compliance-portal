@@ -11,3 +11,121 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// User roles
+enum UserRole {
+  APPLICANT
+  REVIEWER
+  APPROVER
+  ADMIN
+}
+
+// Application workflow states
+enum ApplicationState {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_MORE_INFO
+  REVIEWED
+  APPROVED
+  REJECTED
+}
+
+// Types of banking licenses
+enum LicenseType {
+  COMMERCIAL_BANK
+  RETAIL_BANK
+  INVESTMENT_BANK
+  CREDIT_UNION
+}
+
+// User Model and role-based permissions
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  password     String
+  role         UserRole @default(APPLICANT)
+  name         String
+  createdAt    DateTime @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime @updatedAt @db.Timestamp(6)
+
+  // Relations
+  applications          Application[]
+  reviewedApplications  Application[] @relation("ReviewedBy")
+  approvedApplications  Application[] @relation("ApprovedBy")
+  uploadedDocuments     Document[]    @relation("UploadedBy")
+  auditLogs             AuditLog[]    @relation("PerformedBy")
+
+  @@index([email])
+  @@index([role])
+}
+
+// Banking license applications with full regulatory workflow tracking
+model Application {
+  id              String            @id @default(uuid()) @db.Uuid
+  userId          String            @db.Uuid
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionName String
+  licenseType     LicenseType
+  description     String?           @db.Text
+  state           ApplicationState  @default(DRAFT)
+  version         Int               @default(1) // Optimistic locking version
+  reviewedBy      String?           @db.Uuid // User ID of reviewer (nullable)
+  reviewedByUser  User?             @relation("ReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  approvedBy      String?           @db.Uuid // User ID of approver (nullable)
+  approvedByUser  User?             @relation("ApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
+  createdAt       DateTime          @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime          @updatedAt @db.Timestamp(6)
+
+  // Relations
+  documents  Document[]
+  auditLogs  AuditLog[] // Complete audit trail of all changes
+
+  // Indexes for performance and same queries
+  @@index([userId])
+  @@index([state])
+  @@index([licenseType])
+  @@index([reviewedBy])
+  @@index([approvedBy])
+}
+
+// Document attachments with versioning and metadata
+model Document {
+  id            String      @id @default(uuid()) @db.Uuid
+  applicationId String      @db.Uuid // Application this document belongs to
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  uploadedById  String      @db.Uuid // User who uploaded the document
+  uploadedBy    User        @relation("UploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  version       Int         @default(1)
+  fileName      String
+  filePath      String
+  mimeType      String
+  fileSize      Int         @db.Integer
+  createdAt     DateTime    @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime    @updatedAt @db.Timestamp(6)
+
+  // Constraints and indexes
+  @@unique([applicationId, version]) // Prevent duplicate versions per application
+  @@index([applicationId])           // Find documents by application
+  @@index([uploadedById])            // Find documents uploaded by user
+}
+
+// Immutable audit log for regulatory and legal requirements
+model AuditLog {
+  id              String            @id @default(uuid()) @db.Uuid
+  userId          String            @db.Uuid // User who performed the action
+  user            User              @relation("PerformedBy", fields: [userId], references: [id], onDelete: Restrict)
+  applicationId   String            @db.Uuid // Application affected by the action
+  application     Application       @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  action          String
+  previousState   ApplicationState? // Application state before the action
+  newState        ApplicationState? // Application state after the action
+  details         Json?             // Additional structured data about the action
+  createdAt       DateTime          @default(now()) @db.Timestamp(6)
+
+  // Indexes for audit queries and compliance reporting
+  @@index([userId])        // Find actions by user
+  @@index([applicationId]) // Find audit trail for application
+  @@index([action])        // Filter by action type
+  @@index([createdAt])
+}
