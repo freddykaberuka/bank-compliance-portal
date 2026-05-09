@@ -1,18 +1,20 @@
 {
     "compilerOptions": {
       "target": "ES2020",
-      "module": "CommonJS",
+      "module": "Node16",
       "outDir": "./dist",
-      "rootDir": "./src",
+      "rootDirs": ["./src", "./prisma"],
+      "moduleResolution": "node16",
       "strict": true,
       "esModuleInterop": true,
       "skipLibCheck": true,
       "forceConsistentCasingInFileNames": true,
+      "types": ["node"],
       "typeRoots": [
         "./src/types",
         "./node_modules/@types"
       ]
     },
-    "include": ["src/**/*.ts"],
+    "include": ["src/**/*.ts", "prisma/**/*.ts", "prisma.config.ts", "src/generated/prisma/index.d.ts"],
     "exclude": ["node_modules"]
   }
