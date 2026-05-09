@@ -3,6 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { errorHandler } from './middleware/errorHandler';
+import { validateJWTConfig } from './utils/jwt';
+import authRoutes from './routes/auth';
+
+// Validate JWT config
+validateJWTConfig();
 
 const app = express();
 
@@ -17,7 +22,9 @@ app.get('/health', (req, res) => {
   res.json({ success: true, message: 'Server running' });
 });
 
-// Error handling
+app.use('/auth', authRoutes);
+
+
 app.use(errorHandler);
 
 export default app;
