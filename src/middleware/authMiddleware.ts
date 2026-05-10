@@ -1,7 +1,8 @@
 import { NextFunction, Response } from 'express';
 import { AuthenticatedRequest } from '../types';
 import { verifyToken, extractTokenFromHeader } from '../utils/jwt';
-import { AuthenticationError } from '../utils/errors';
+import { AuthenticationError, AuthorizationError } from '../utils/errors';
+import { UserRole } from '../generated/prisma/enums';
 
 /**
  * Authentication middleware
@@ -31,4 +32,23 @@ export const authMiddleware = (
   } catch (error) {
     next(error);
   }
+};
+
+// Role-based authorization middleware factory
+export const authorizeRoles = (...allowedRoles: UserRole[]) => {
+  return (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    if (!req.user) {
+      return next(new AuthenticationError('Authentication required'));
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return next(new AuthorizationError('Insufficient permissions for this action'));
+    }
+
+    next();
+  };
 };
