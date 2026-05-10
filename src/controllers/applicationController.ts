@@ -58,4 +58,74 @@ export const ApplicationController = {
       data: application,
     });
   }),
+
+  submitApplication: asyncHandler(async (req: AuthenticatedRequest, res: Response<GetApplicationResponse>) => {
+    if (!req.user) {
+      throw new Error('User not attached to request');
+    }
+
+    const { id } = req.params;
+    const application = await ApplicationService.submitApplication(req.user.userId, id as string);
+
+    res.status(200).json({
+      success: true,
+      data: application,
+    });
+  }),
+
+  reviewApplication: asyncHandler(async (req: AuthenticatedRequest, res: Response<GetApplicationResponse>) => {
+    if (!req.user) {
+      throw new Error('User not attached to request');
+    }
+
+    const { id } = req.params;
+    const application = await ApplicationService.reviewApplication(req.user.userId, id as string);
+
+    res.status(200).json({
+      success: true,
+      data: application,
+    });
+  }),
+
+  requestMoreInfo: asyncHandler(async (req: AuthenticatedRequest, res: Response<GetApplicationResponse>) => {
+    if (!req.user) {
+      throw new Error('User not attached to request');
+    }
+
+    const { id } = req.params;
+    const application = await ApplicationService.requestMoreInfo(req.user.userId, id as string);
+
+    res.status(200).json({
+      success: true,
+      data: application,
+    });
+  }),
+
+  approveApplication: asyncHandler(async (req: AuthenticatedRequest, res: Response<GetApplicationResponse>) => {
+    if (!req.user) {
+      throw new Error('User not attached to request');
+    }
+
+    const { id } = req.params;
+    const application = await ApplicationService.approveApplication(req.user.userId, id as string);
+
+    res.status(200).json({
+      success: true,
+      data: application,
+    });
+  }),
+
+  rejectApplication: asyncHandler(async (req: AuthenticatedRequest, res: Response<GetApplicationResponse>) => {
+    if (!req.user) {
+      throw new Error('User not attached to request');
+    }
+
+    const { id } = req.params;
+    const application = await ApplicationService.rejectApplication(req.user.userId, id as string);
+
+    res.status(200).json({
+      success: true,
+      data: application,
+    });
+  }),
 };

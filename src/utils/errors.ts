@@ -53,3 +53,10 @@ export class InternalServerError extends AppError {
     Object.setPrototypeOf(this, InternalServerError.prototype);
   }
 }
+
+export class WorkflowError extends AppError {
+  constructor(message: string = 'Invalid workflow transition') {
+    super(message, 409, 'WORKFLOW_ERROR');
+    Object.setPrototypeOf(this, WorkflowError.prototype);
+  }
+}

@@ -109,4 +109,45 @@ export const ApplicationRepository = {
       orderBy: { createdAt: 'desc' },
     });
   },
+
+
+  async updateState(
+    id: string,
+    newState: ApplicationState,
+    metadata?: {
+      reviewedBy?: string;
+      approvedBy?: string;
+    }
+  ) {
+    return prisma.application.update({
+      where: { id },
+      data: {
+        state: newState,
+        reviewedBy: metadata?.reviewedBy,
+        approvedBy: metadata?.approvedBy,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          },
+        },
+        reviewedByUser: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        approvedByUser: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  },
 };
