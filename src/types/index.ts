@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { UserRole } from '../generated/prisma/enums';
+import { UserRole, LicenseType, ApplicationState } from '../generated/prisma/enums';
 
 
 export interface JWTPayload {
@@ -53,4 +53,54 @@ export interface ErrorResponse {
   message: string;
   code?: string;
   errors?: Record<string, string[]>;
+}
+
+// Application types
+export interface CreateApplicationRequest {
+  institutionName: string;
+  licenseType: LicenseType;
+  description?: string;
+}
+
+export interface BasicApplicationResponse {
+  id: string;
+  institutionName: string;
+  licenseType: LicenseType;
+  description: string | null;
+  state: ApplicationState;
+  version: number;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: UserRole;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ApplicationResponse extends BasicApplicationResponse {
+  reviewedBy: {
+    id: string;
+    name: string;
+  } | null;
+  approvedBy: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+export interface CreateApplicationResponse {
+  success: boolean;
+  data: BasicApplicationResponse;
+}
+
+export interface GetApplicationsResponse {
+  success: boolean;
+  data: BasicApplicationResponse[];
+}
+
+export interface GetApplicationResponse {
+  success: boolean;
+  data: ApplicationResponse;
 }

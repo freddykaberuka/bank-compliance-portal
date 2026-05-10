@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { errorHandler } from './middleware/errorHandler';
 import { validateJWTConfig } from './utils/jwt';
 import authRoutes from './routes/auth';
+import applicationRoutes from './routes/applicationRoutes';
 
 // Validate JWT config
 validateJWTConfig();
@@ -23,6 +24,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/auth', authRoutes);
+app.use('/applications', applicationRoutes);
 
 
 app.use(errorHandler);
