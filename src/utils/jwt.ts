@@ -12,6 +12,23 @@ export const validateJWTConfig = () => {
   }
 };
 
+const tokenBlacklist = new Set<string>();
+
+export const blacklistToken = (token: string) => {
+  tokenBlacklist.add(token);
+
+  const decoded = jwt.decode(token) as { exp?: number } | null;
+  const expiresInMs = decoded?.exp ? decoded.exp * 1000 - Date.now() : undefined;
+
+  if (expiresInMs && expiresInMs > 0) {
+    setTimeout(() => {
+      tokenBlacklist.delete(token);
+    }, expiresInMs + 5000);
+  }
+};
+
+export const isTokenBlacklisted = (token: string) => tokenBlacklist.has(token);
+
 export const generateToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): string => {
   try {
     return jwt.sign(payload, JWT_SECRET as string, {
@@ -25,6 +42,10 @@ export const generateToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): string 
 
 export const verifyToken = (token: string): JWTPayload => {
   try {
+    if (isTokenBlacklisted(token)) {
+      throw new AuthenticationError('Token has been logged out');
+    }
+
     const decoded = jwt.verify(token, JWT_SECRET as string, {
       algorithms: ['HS256'],
     } as any) as unknown as JWTPayload;
@@ -35,6 +56,9 @@ export const verifyToken = (token: string): JWTPayload => {
     }
     if (error instanceof jwt.JsonWebTokenError) {
       throw new AuthenticationError('Invalid or malformed token');
+    }
+    if (error instanceof AuthenticationError) {
+      throw error;
     }
     throw new AuthenticationError('Token verification failed');
   }

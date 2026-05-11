@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/userRepository';
-import { generateToken } from '../utils/jwt';
+import { blacklistToken, generateToken } from '../utils/jwt';
 import { AuthenticationError } from '../utils/errors';
 import { JWTPayload } from '../types';
 
@@ -39,7 +39,13 @@ export const AuthService = {
     };
   },
 
-// get user profile for authenticated requests
+  async logout(token: string) {
+    blacklistToken(token);
+    return {
+      success: true,
+    };
+  },
+
   async getProfile(userId: string) {
     const user = await UserRepository.getProfile(userId);
 

@@ -3,11 +3,11 @@ import { AuthenticatedRequest, LoginResponse, AuthMeResponse } from '../types';
 import { AuthService } from '../services/authService';
 import { validateLoginInput } from '../validators/auth';
 import { ValidationError } from '../utils/errors';
+import { extractTokenFromHeader } from '../utils/jwt';
 import { asyncHandler } from '../utils/asyncHandler';
 
 
 export const AuthController = {
-//   user login /auth/login
   login: asyncHandler(async (req: any, res: Response<LoginResponse>) => {
     let userData;
     try {
@@ -27,9 +27,20 @@ export const AuthController = {
     });
   }),
 
-  
-//    GET /auth/me
-   
+  logout: asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) {
+      throw new Error('User not attached to request');
+    }
+
+    const token = extractTokenFromHeader(req.headers.authorization);
+    await AuthService.logout(token);
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  }),
+
   getMe: asyncHandler(async (req: AuthenticatedRequest, res: Response<AuthMeResponse>) => {
     if (!req.user) {
       throw new Error('User not attached to request');
