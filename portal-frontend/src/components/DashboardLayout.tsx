@@ -70,9 +70,9 @@ export const DashboardLayout = () => {
 
           <nav className="flex-1 px-2 py-4 space-y-1">
             <SidebarLink to="/dashboard" label="Dashboard" />
-            <SidebarLink to="/applications" label="Applications" />
-            <SidebarLink to="/reviews" label="Reviews" />
-            <SidebarLink to="/audit-logs" label="Audit Logs" />
+            <SidebarLink to="/dashboard/applications" label="Applications" />
+            <SidebarLink to="/dashboard/reviews" label="Reviews" />
+            <SidebarLink to="/dashboard/audit-logs" label="Audit Logs" />
           </nav>
           <div className="p-4 border-t border-gray-200">
             <button
