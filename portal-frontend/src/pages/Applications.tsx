@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { createApplication, fetchApplications } from '../features/applications/applicationsSlice';
+import { useRole } from '../app/useRole';
 
 const Applications: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -10,6 +11,7 @@ const Applications: React.FC = () => {
   const [licenseType, setLicenseType] = useState('COMMERCIAL_BANK');
   const [description, setDescription] = useState('');
   const [formMessage, setFormMessage] = useState<string | null>(null);
+  const { canSubmitApplications } = useRole();
 
   useEffect(() => {
     dispatch(fetchApplications());
@@ -90,6 +92,7 @@ const Applications: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900">Applications</h1>
         <p className="text-gray-600 mt-2">Manage and track your banking license applications</p>
       </div>
+    {canSubmitApplications() && (
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-gray-900">Create new application</h2>
         <div className="mt-4 space-y-4">
@@ -141,6 +144,7 @@ const Applications: React.FC = () => {
           </div>
         </div>
       </section>
+    )}
 
       {applications.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">

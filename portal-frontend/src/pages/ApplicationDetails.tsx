@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { selectAuthRole } from '../features/auth/authSelectors';
+import { useRole } from '../app/useRole';
 import { apiClient } from '../api';
 import DocumentUpload, { MAX_FILE_SIZE } from '../components/DocumentUpload';
 import type { ApplicationDocument } from '../features/applications/applicationDetailsSlice';
@@ -49,6 +50,7 @@ const ApplicationDetails: React.FC = () => {
   const { id } = useParams();
   const dispatch = useAppDispatch();
   const role = useAppSelector(selectAuthRole);
+  const { canSubmitApplications, canReview, canApprove } = useRole();
   const {
     application,
     documents,
@@ -78,11 +80,11 @@ const ApplicationDetails: React.FC = () => {
 
   const currentState = application?.state ?? '';
 
-  const canSubmit = role === 'APPLICANT' && ['DRAFT', 'NEEDS_MORE_INFO'].includes(currentState);
-  const canUpload = role === 'APPLICANT';
-  const canReview = role === 'REVIEWER' && ['SUBMITTED', 'UNDER_REVIEW'].includes(currentState);
-  const canRequestMoreInfo = role === 'REVIEWER' && ['SUBMITTED', 'UNDER_REVIEW'].includes(currentState);
-  const canApproveOrReject = role === 'APPROVER' && currentState === 'REVIEWED';
+  const canSubmit = canSubmitApplications() && ['DRAFT', 'NEEDS_MORE_INFO'].includes(currentState);
+  const canUpload = canSubmitApplications();
+  const canReviewApp = canReview() && ['SUBMITTED', 'UNDER_REVIEW'].includes(currentState);
+  const canRequestMoreInfo = canReview() && ['SUBMITTED', 'UNDER_REVIEW'].includes(currentState);
+  const canApproveOrReject = canApprove() && currentState === 'REVIEWED';
 
   const actionsDisabled = actionLoading || loading;
 
@@ -394,7 +396,7 @@ const ApplicationDetails: React.FC = () => {
                   maxSizeBytes={MAX_FILE_SIZE}
                 />
               )}
-              {canReview && (
+              {canReviewApp && (
                 <button
                   onClick={() => handleAction('review')}
                   disabled={actionsDisabled}
@@ -430,7 +432,7 @@ const ApplicationDetails: React.FC = () => {
                   </button>
                 </div>
               )}
-              {!canSubmit && !canUpload && !canReview && !canRequestMoreInfo && !canApproveOrReject && (
+              {!canSubmit && !canUpload && !canReviewApp && !canRequestMoreInfo && !canApproveOrReject && (
                 <p className="text-sm text-gray-500">You do not have any actions available for this application.</p>
               )}
             </div>
