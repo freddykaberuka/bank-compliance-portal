@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ErrorResponse } from '../types';
-import { AppError, ValidationError } from '../utils/errors';
+import { ApiError, ValidationError } from '../utils/errors';
 
 // Global error handling middleware
 
@@ -10,28 +10,21 @@ export const errorHandler = (
   res: Response<ErrorResponse>,
   next: NextFunction
 ) => {
-  // Default to 500 error
+  const isDevelopment = process.env.NODE_ENV === 'development';
   let statusCode = 500;
   let message = 'Internal server error';
   let code = 'INTERNAL_SERVER_ERROR';
   let errors: Record<string, string[]> | undefined;
 
-  // Handle custom AppError instances
-  if (err instanceof AppError) {
+  if (err instanceof ApiError) {
     statusCode = err.statusCode;
     message = err.message;
     code = err.code || 'ERROR';
-
-    if (err instanceof ValidationError) {
-      errors = err.errors;
-    }
-  }
-  // Handle unhandled errors
-  else if (err instanceof Error) {
-    message = err.message;
+    errors = err instanceof ValidationError ? err.details : undefined;
+  } else if (err instanceof Error) {
+    message = err.message || message;
   }
 
-  // Log error for debugging
   console.error({
     timestamp: new Date().toISOString(),
     method: req.method,
@@ -39,10 +32,9 @@ export const errorHandler = (
     statusCode,
     code,
     message,
-    error: process.env.NODE_ENV === 'development' ? err : undefined,
+    ...(isDevelopment && err instanceof Error ? { stack: err.stack } : {}),
   });
 
-  // Send error response
   res.status(statusCode).json({
     success: false,
     message,
