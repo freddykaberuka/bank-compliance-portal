@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { AuthState } from '../../types/auth';
-import { login } from './authThunks';
+import { login, logout } from './authThunks';
 
 const TOKEN_STORAGE_KEY = 'bank_portal_auth_token';
 
@@ -35,14 +35,6 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout(state) {
-      state.token = null;
-      state.user = null;
-      state.role = null;
-      state.loading = false;
-      state.error = null;
-      saveToken(null);
-    },
     clearError(state) {
       state.error = null;
     },
@@ -64,9 +56,17 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? action.error.message ?? 'Login failed';
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.token = null;
+        state.user = null;
+        state.role = null;
+        state.loading = false;
+        state.error = null;
+        saveToken(null);
       });
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { clearError } = authSlice.actions;
 export default authSlice.reducer;

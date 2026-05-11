@@ -18,3 +18,11 @@ export const login = createAsyncThunk<LoginResponseData, LoginCredentials, { rej
     }
   }
 );
+
+export const logout = createAsyncThunk(
+  'auth/logout',
+  async () => {
+    // Clear local storage
+    localStorage.removeItem('authToken');
+  }
+);
