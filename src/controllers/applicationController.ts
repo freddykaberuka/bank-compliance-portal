@@ -65,7 +65,8 @@ export const ApplicationController = {
     }
 
     const { id } = req.params;
-    const application = await ApplicationService.submitApplication(req.user.userId, id as string);
+    const expectedVersion = typeof req.body?.version === 'number' ? req.body.version : undefined;
+    const application = await ApplicationService.submitApplication(req.user.userId, id as string, expectedVersion);
 
     res.status(200).json({
       success: true,
@@ -79,7 +80,8 @@ export const ApplicationController = {
     }
 
     const { id } = req.params;
-    const application = await ApplicationService.reviewApplication(req.user.userId, id as string);
+    const expectedVersion = typeof req.body?.version === 'number' ? req.body.version : undefined;
+    const application = await ApplicationService.reviewApplication(req.user.userId, id as string, expectedVersion);
 
     res.status(200).json({
       success: true,
@@ -93,7 +95,8 @@ export const ApplicationController = {
     }
 
     const { id } = req.params;
-    const application = await ApplicationService.requestMoreInfo(req.user.userId, id as string);
+    const expectedVersion = typeof req.body?.version === 'number' ? req.body.version : undefined;
+    const application = await ApplicationService.requestMoreInfo(req.user.userId, id as string, expectedVersion);
 
     res.status(200).json({
       success: true,
@@ -107,7 +110,8 @@ export const ApplicationController = {
     }
 
     const { id } = req.params;
-    const application = await ApplicationService.approveApplication(req.user.userId, id as string);
+    const expectedVersion = typeof req.body?.version === 'number' ? req.body.version : undefined;
+    const application = await ApplicationService.approveApplication(req.user.userId, id as string, expectedVersion);
 
     res.status(200).json({
       success: true,
@@ -121,7 +125,8 @@ export const ApplicationController = {
     }
 
     const { id } = req.params;
-    const application = await ApplicationService.rejectApplication(req.user.userId, id as string);
+    const expectedVersion = typeof req.body?.version === 'number' ? req.body.version : undefined;
+    const application = await ApplicationService.rejectApplication(req.user.userId, id as string, expectedVersion);
 
     res.status(200).json({
       success: true,

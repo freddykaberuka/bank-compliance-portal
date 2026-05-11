@@ -12,9 +12,9 @@ router.get('/', authorizeRoles(UserRole.APPLICANT, UserRole.REVIEWER, UserRole.A
 router.get('/:id', authorizeRoles(UserRole.APPLICANT, UserRole.REVIEWER, UserRole.APPROVER, UserRole.ADMIN), ApplicationController.getApplication);
 
 router.post('/:id/submit', authorizeRoles(UserRole.APPLICANT), ApplicationController.submitApplication);
-router.post('/:id/review', authorizeRoles(UserRole.REVIEWER, UserRole.ADMIN), ApplicationController.reviewApplication);
-router.post('/:id/request-more-info', authorizeRoles(UserRole.REVIEWER, UserRole.ADMIN), ApplicationController.requestMoreInfo);
-router.post('/:id/approve', authorizeRoles(UserRole.APPROVER, UserRole.ADMIN), ApplicationController.approveApplication);
-router.post('/:id/reject', authorizeRoles(UserRole.APPROVER, UserRole.ADMIN), ApplicationController.rejectApplication);
+router.post('/:id/review', authorizeRoles(UserRole.REVIEWER), ApplicationController.reviewApplication);
+router.post('/:id/request-more-info', authorizeRoles(UserRole.REVIEWER), ApplicationController.requestMoreInfo);
+router.post('/:id/approve', authorizeRoles(UserRole.APPROVER), ApplicationController.approveApplication);
+router.post('/:id/reject', authorizeRoles(UserRole.APPROVER), ApplicationController.rejectApplication);
 
 export default router;

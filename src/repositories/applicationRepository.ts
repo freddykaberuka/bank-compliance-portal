@@ -1,5 +1,5 @@
 import prisma from '../prisma';
-import { NotFoundError } from '../utils/errors';
+import { ConflictError, NotFoundError } from '../utils/errors';
 import { LicenseType, ApplicationState } from '../generated/prisma/enums';
 
 export const ApplicationRepository = {
@@ -117,15 +117,27 @@ export const ApplicationRepository = {
     metadata?: {
       reviewedBy?: string;
       approvedBy?: string;
-    }
+    },
+    expectedVersion?: number
   ) {
+    const updateData: any = {
+      state: newState,
+      version: {
+        increment: 1,
+      },
+    };
+
+    if (metadata?.reviewedBy !== undefined) {
+      updateData.reviewedBy = metadata.reviewedBy;
+    }
+    if (metadata?.approvedBy !== undefined) {
+      updateData.approvedBy = metadata.approvedBy;
+    }
+
+  if (expectedVersion == null) {
     return prisma.application.update({
       where: { id },
-      data: {
-        state: newState,
-        reviewedBy: metadata?.reviewedBy,
-        approvedBy: metadata?.approvedBy,
-      },
+      data: updateData,
       include: {
         user: {
           select: {
@@ -149,5 +161,56 @@ export const ApplicationRepository = {
         },
       },
     });
+  }
+
+    const [updateResult, refreshedApplication] = await prisma.$transaction([
+      prisma.application.updateMany({
+        where: {
+          id,
+          version: expectedVersion,
+        },
+        data: updateData,
+      }),
+      prisma.application.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+            },
+          },
+          reviewedByUser: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          approvedByUser: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    if (updateResult.count === 0) {
+      if (!refreshedApplication) {
+        throw new NotFoundError('Application', id);
+      }
+      throw new ConflictError(
+        `Stale application version. Expected ${expectedVersion}, actual ${refreshedApplication.version}`
+      );
+    }
+
+    if (!refreshedApplication) {
+      throw new NotFoundError('Application', id);
+    }
+
+    return refreshedApplication;
   },
 };

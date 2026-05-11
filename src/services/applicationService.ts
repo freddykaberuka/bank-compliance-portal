@@ -1,9 +1,18 @@
 import { ApplicationRepository } from '../repositories/applicationRepository';
 import { UserRepository } from '../repositories/userRepository';
-import { AuthorizationError, NotFoundError, WorkflowError } from '../utils/errors';
+import { AuthorizationError, ConflictError, NotFoundError, WorkflowError } from '../utils/errors';
 import { UserRole, ApplicationState } from '../generated/prisma/enums';
-import { canTransition, isTerminalState } from '../workflow/applicationWorkflow';
+import { canTransition } from '../workflow/applicationWorkflow';
+import { ApplicationPolicy } from '../middleware/applicationPolicy';
 
+const resolveExpectedVersion = (application: any, expectedVersion?: number) => {
+  if (expectedVersion !== undefined && expectedVersion !== application.version) {
+    throw new ConflictError(
+      `Stale application version. Expected ${expectedVersion}, actual ${application.version}`
+    );
+  }
+  return expectedVersion ?? application.version;
+};
 
 export const ApplicationService = {
   async createApplication(userId: string, data: {
@@ -38,9 +47,7 @@ export const ApplicationService = {
     const application = await ApplicationRepository.getOrThrow(applicationId);
 
     const user = await UserRepository.getOrThrow(userId);
-    if (user.role === UserRole.APPLICANT && application.userId !== userId) {
-      throw new AuthorizationError('Access denied');
-    }
+    ApplicationPolicy.assertCanViewApplication(user, application);
 
     return {
       id: application.id,
@@ -80,26 +87,21 @@ export const ApplicationService = {
     }));
   },
 
-  async submitApplication(userId: string, applicationId: string) {
+  async submitApplication(userId: string, applicationId: string, expectedVersion?: number) {
     const application = await ApplicationRepository.getOrThrow(applicationId);
     const user = await UserRepository.getOrThrow(userId);
 
-    if (user.role !== UserRole.APPLICANT) {
-      throw new AuthorizationError('Only applicants can submit applications');
-    }
-    if (application.userId !== userId) {
-      throw new AuthorizationError('Applicants can only submit their own applications');
-    }
-    if (isTerminalState(application.state)) {
-      throw new WorkflowError(`Cannot submit application in terminal state: ${application.state}`);
-    }
+    ApplicationPolicy.assertCanSubmitApplication(user, application);
     if (!canTransition(application.state, ApplicationState.SUBMITTED)) {
       throw new WorkflowError(`Cannot submit application from ${application.state}`);
     }
 
+    const versionToUse = resolveExpectedVersion(application, expectedVersion);
     const updatedApplication = await ApplicationRepository.updateState(
       applicationId,
-      ApplicationState.SUBMITTED
+      ApplicationState.SUBMITTED,
+      undefined,
+      versionToUse
     );
 
     return {
@@ -117,16 +119,11 @@ export const ApplicationService = {
     };
   },
 
-  async reviewApplication(userId: string, applicationId: string) {
+  async reviewApplication(userId: string, applicationId: string, expectedVersion?: number) {
     const application = await ApplicationRepository.getOrThrow(applicationId);
     const user = await UserRepository.getOrThrow(userId);
 
-    if (user.role !== UserRole.REVIEWER && user.role !== UserRole.ADMIN) {
-      throw new AuthorizationError('Only reviewers or admins can review applications');
-    }
-    if (isTerminalState(application.state)) {
-      throw new WorkflowError(`Cannot review application in terminal state: ${application.state}`);
-    }
+    ApplicationPolicy.assertCanReviewApplication(user, application);
 
     const nextState = application.state === ApplicationState.SUBMITTED
       ? ApplicationState.UNDER_REVIEW
@@ -140,10 +137,12 @@ export const ApplicationService = {
       ? { reviewedBy: userId }
       : undefined;
 
+    const versionToUse = resolveExpectedVersion(application, expectedVersion);
     const updatedApplication = await ApplicationRepository.updateState(
       applicationId,
       nextState,
-      metadata
+      metadata,
+      versionToUse
     );
 
     return {
@@ -161,23 +160,21 @@ export const ApplicationService = {
     };
   },
 
-  async requestMoreInfo(userId: string, applicationId: string) {
+  async requestMoreInfo(userId: string, applicationId: string, expectedVersion?: number) {
     const application = await ApplicationRepository.getOrThrow(applicationId);
     const user = await UserRepository.getOrThrow(userId);
 
-    if (user.role !== UserRole.REVIEWER && user.role !== UserRole.ADMIN) {
-      throw new AuthorizationError('Only reviewers or admins can request more information');
-    }
-    if (isTerminalState(application.state)) {
-      throw new WorkflowError(`Cannot request more information from terminal state: ${application.state}`);
-    }
+    ApplicationPolicy.assertCanRequestMoreInfo(user, application);
     if (!canTransition(application.state, ApplicationState.NEEDS_MORE_INFO)) {
       throw new WorkflowError(`Cannot transition from ${application.state} to NEEDS_MORE_INFO`);
     }
 
+    const versionToUse = resolveExpectedVersion(application, expectedVersion);
     const updatedApplication = await ApplicationRepository.updateState(
       applicationId,
-      ApplicationState.NEEDS_MORE_INFO
+      ApplicationState.NEEDS_MORE_INFO,
+      undefined,
+      versionToUse
     );
 
     return {
@@ -195,24 +192,21 @@ export const ApplicationService = {
     };
   },
 
-  async approveApplication(userId: string, applicationId: string) {
+  async approveApplication(userId: string, applicationId: string, expectedVersion?: number) {
     const application = await ApplicationRepository.getOrThrow(applicationId);
     const user = await UserRepository.getOrThrow(userId);
 
-    if (user.role !== UserRole.APPROVER && user.role !== UserRole.ADMIN) {
-      throw new AuthorizationError('Only approvers or admins can approve applications');
-    }
-    if (isTerminalState(application.state)) {
-      throw new WorkflowError(`Cannot approve application in terminal state: ${application.state}`);
-    }
+    ApplicationPolicy.assertCanApproveApplication(user, application);
     if (!canTransition(application.state, ApplicationState.APPROVED)) {
       throw new WorkflowError(`Cannot transition from ${application.state} to APPROVED`);
     }
 
+    const versionToUse = resolveExpectedVersion(application, expectedVersion);
     const updatedApplication = await ApplicationRepository.updateState(
       applicationId,
       ApplicationState.APPROVED,
-      { approvedBy: userId }
+      { approvedBy: userId },
+      versionToUse
     );
 
     return {
@@ -230,24 +224,21 @@ export const ApplicationService = {
     };
   },
 
-  async rejectApplication(userId: string, applicationId: string) {
+  async rejectApplication(userId: string, applicationId: string, expectedVersion?: number) {
     const application = await ApplicationRepository.getOrThrow(applicationId);
     const user = await UserRepository.getOrThrow(userId);
 
-    if (user.role !== UserRole.APPROVER && user.role !== UserRole.ADMIN) {
-      throw new AuthorizationError('Only approvers or admins can reject applications');
-    }
-    if (isTerminalState(application.state)) {
-      throw new WorkflowError(`Cannot reject application in terminal state: ${application.state}`);
-    }
+    ApplicationPolicy.assertCanRejectApplication(user, application);
     if (!canTransition(application.state, ApplicationState.REJECTED)) {
       throw new WorkflowError(`Cannot transition from ${application.state} to REJECTED`);
     }
 
+    const versionToUse = resolveExpectedVersion(application, expectedVersion);
     const updatedApplication = await ApplicationRepository.updateState(
       applicationId,
       ApplicationState.REJECTED,
-      { approvedBy: userId }
+      { approvedBy: userId },
+      versionToUse
     );
 
     return {
