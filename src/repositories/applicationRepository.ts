@@ -27,7 +27,30 @@ export const ApplicationRepository = {
     });
   },
 
-  
+  async createWithTransaction(tx: any, data: {
+    userId: string;
+    institutionName: string;
+    licenseType: LicenseType;
+    description?: string;
+  }) {
+    return tx.application.create({
+      data: {
+        ...data,
+        state: ApplicationState.DRAFT,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          },
+        },
+      },
+    });
+  },
+
   async findById(id: string) {
     return prisma.application.findUnique({
       where: { id },
