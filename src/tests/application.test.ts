@@ -32,6 +32,7 @@ describe('Optimistic locking', () => {
     expect(updated?.version).toBe(app.version + 1);
     expect(updated?.state).toBe(ApplicationState.SUBMITTED);
 
+    await prisma.auditLog.deleteMany({ where: { applicationId: app.id } });
     await prisma.application.delete({ where: { id: app.id } });
     await prisma.user.delete({ where: { id: applicant.id } });
     await prisma.$disconnect();
