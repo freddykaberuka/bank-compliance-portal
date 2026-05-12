@@ -1,4 +1,6 @@
+import prisma from '../prisma';
 import { ApplicationRepository } from '../repositories/applicationRepository';
+import { AuditService } from './auditService';
 import { UserRepository } from '../repositories/userRepository';
 import { AuthorizationError, ConflictError, NotFoundError, WorkflowError } from '../utils/errors';
 import { UserRole, ApplicationState } from '../generated/prisma/enums';
@@ -14,6 +16,73 @@ const resolveExpectedVersion = (application: any, expectedVersion?: number) => {
   return expectedVersion ?? application.version;
 };
 
+const updateApplicationStateWithAudit = async (
+  applicationId: string,
+  actorId: string,
+  action: string,
+  previousState: ApplicationState | null,
+  newState: ApplicationState,
+  updateData: Record<string, unknown>,
+  expectedVersion?: number
+) => {
+  return prisma.$transaction(async (tx) => {
+    const updateResult = await tx.application.updateMany({
+      where: expectedVersion != null ? { id: applicationId, version: expectedVersion } : { id: applicationId },
+      data: updateData,
+    });
+
+    if (updateResult.count === 0) {
+      const current = await tx.application.findUnique({ where: { id: applicationId } });
+      if (!current) {
+        throw new NotFoundError('Application', applicationId);
+      }
+      throw new ConflictError(
+        `Stale application version. Expected ${expectedVersion}, actual ${current.version}`
+      );
+    }
+
+    const application = await tx.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          },
+        },
+        reviewedByUser: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        approvedByUser: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!application) {
+      throw new NotFoundError('Application', applicationId);
+    }
+
+    await AuditService.logApplicationActionTransaction(tx, {
+      userId: actorId,
+      applicationId,
+      action,
+      previousState,
+      newState,
+    });
+
+    return application;
+  });
+};
+
 export const ApplicationService = {
   async createApplication(userId: string, data: {
     institutionName: string;
@@ -25,9 +94,34 @@ export const ApplicationService = {
       throw new AuthorizationError('Only applicants can create applications');
     }
 
-    const application = await ApplicationRepository.create({
-      userId,
-      ...data,
+    const application = await prisma.$transaction(async (tx) => {
+      const created = await tx.application.create({
+        data: {
+          userId,
+          ...data,
+          state: ApplicationState.DRAFT,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      await AuditService.logApplicationActionTransaction(tx, {
+        userId,
+        applicationId: created.id,
+        action: 'CREATE_APPLICATION',
+        previousState: null,
+        newState: created.state,
+      });
+
+      return created;
     });
 
     return {
@@ -97,10 +191,18 @@ export const ApplicationService = {
     }
 
     const versionToUse = resolveExpectedVersion(application, expectedVersion);
-    const updatedApplication = await ApplicationRepository.updateState(
+    const updatedApplication = await updateApplicationStateWithAudit(
       applicationId,
+      userId,
+      'SUBMIT_APPLICATION',
+      application.state,
       ApplicationState.SUBMITTED,
-      undefined,
+      {
+        state: ApplicationState.SUBMITTED,
+        version: {
+          increment: 1,
+        },
+      },
       versionToUse
     );
 
@@ -138,10 +240,19 @@ export const ApplicationService = {
       : undefined;
 
     const versionToUse = resolveExpectedVersion(application, expectedVersion);
-    const updatedApplication = await ApplicationRepository.updateState(
+    const updatedApplication = await updateApplicationStateWithAudit(
       applicationId,
+      userId,
+      'REVIEW_APPLICATION',
+      application.state,
       nextState,
-      metadata,
+      {
+        state: nextState,
+        version: {
+          increment: 1,
+        },
+        ...(metadata || {}),
+      },
       versionToUse
     );
 
@@ -170,10 +281,18 @@ export const ApplicationService = {
     }
 
     const versionToUse = resolveExpectedVersion(application, expectedVersion);
-    const updatedApplication = await ApplicationRepository.updateState(
+    const updatedApplication = await updateApplicationStateWithAudit(
       applicationId,
+      userId,
+      'REQUEST_MORE_INFO',
+      application.state,
       ApplicationState.NEEDS_MORE_INFO,
-      undefined,
+      {
+        state: ApplicationState.NEEDS_MORE_INFO,
+        version: {
+          increment: 1,
+        },
+      },
       versionToUse
     );
 
@@ -202,10 +321,19 @@ export const ApplicationService = {
     }
 
     const versionToUse = resolveExpectedVersion(application, expectedVersion);
-    const updatedApplication = await ApplicationRepository.updateState(
+    const updatedApplication = await updateApplicationStateWithAudit(
       applicationId,
+      userId,
+      'APPROVE_APPLICATION',
+      application.state,
       ApplicationState.APPROVED,
-      { approvedBy: userId },
+      {
+        state: ApplicationState.APPROVED,
+        version: {
+          increment: 1,
+        },
+        approvedBy: userId,
+      },
       versionToUse
     );
 
@@ -234,10 +362,19 @@ export const ApplicationService = {
     }
 
     const versionToUse = resolveExpectedVersion(application, expectedVersion);
-    const updatedApplication = await ApplicationRepository.updateState(
+    const updatedApplication = await updateApplicationStateWithAudit(
       applicationId,
+      userId,
+      'REJECT_APPLICATION',
+      application.state,
       ApplicationState.REJECTED,
-      { approvedBy: userId },
+      {
+        state: ApplicationState.REJECTED,
+        version: {
+          increment: 1,
+        },
+        approvedBy: userId,
+      },
       versionToUse
     );
 

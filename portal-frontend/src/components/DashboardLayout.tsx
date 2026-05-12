@@ -3,6 +3,7 @@ import { Link, useNavigate, Outlet } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { logout } from '../features/auth/authThunks';
 import { selectAuthUser, selectAuthRole } from '../features/auth/authSelectors';
+import { useRole } from '../app/useRole';
 
 interface SidebarLinkProps {
   to: string;
@@ -28,6 +29,7 @@ export const DashboardLayout = () => {
   const navigate = useNavigate();
   const user = useAppSelector(selectAuthUser);
   const role = useAppSelector(selectAuthRole);
+  const { canReview, isAdmin } = useRole();
 
   const handleLogout = () => {
     dispatch(logout());
@@ -69,10 +71,14 @@ export const DashboardLayout = () => {
           </div>
 
           <nav className="flex-1 px-2 py-4 space-y-1">
-            <SidebarLink to="/dashboard" label="Dashboard" />
-            <SidebarLink to="/dashboard/applications" label="Applications" />
-            <SidebarLink to="/dashboard/reviews" label="Reviews" />
-            <SidebarLink to="/dashboard/audit-logs" label="Audit Logs" />
+            <SidebarLink to="/dashboard" icon="🏠" label="Dashboard" />
+            <SidebarLink to="/dashboard/applications" icon="📋" label="Applications" />
+            {(canReview() || isAdmin()) && (
+              <SidebarLink to="/dashboard/reviews" icon="🔍" label="Reviews" />
+            )}
+            {isAdmin() && (
+              <SidebarLink to="/dashboard/audit-logs" icon="📊" label="Audit Logs" />
+            )}
           </nav>
           <div className="p-4 border-t border-gray-200">
             <button

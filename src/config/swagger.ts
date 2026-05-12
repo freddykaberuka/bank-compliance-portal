@@ -221,6 +221,37 @@ export const openApiSpec = {
         },
       },
     },
+    '/auth/logout': {
+      post: {
+        tags: ['Authentication'],
+        summary: 'Invalidate the current JWT token and log out the user',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Logged out successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'Logged out successfully' },
+                  },
+                },
+              },
+            },
+          },
+          401: {
+            description: 'Invalid or expired token',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
     '/applications': {
       get: {
         tags: ['Applications'],
